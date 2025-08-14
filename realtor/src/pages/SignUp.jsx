@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Link } from "react-router-dom";
 import { AiFillEyeInvisible, AiFillEye } from "react-icons/ai";
 import OAuth from '../components/OAuth';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { db } from "../firebase";
+import { ref, serverTimestamp, set } from "firebase/database";
+import { useNavigate } from 'react-router-dom';
+import { toast } from "react-toastify";
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,11 +16,35 @@ export default function SignUp() {
     password: "",
   });
   const { name, email, password } = formData;
+  const navigate = useNavigate();
   function onChange(e) {
     setFormData((prevState) => ({
       ...prevState,
       [e.target.id]: e.target.value,
     }));
+  }
+  async function onSubmit(e) {
+    e.preventDefault();
+    try {
+      const auth = getAuth();
+      const userCredential = await
+        createUserWithEmailAndPassword(
+          auth,
+          email,
+          password);
+
+      await updateProfile(auth.currentUser, { displayName: name });
+      const user = userCredential.user;
+      const formDataCopy = { ...formData };
+      delete formDataCopy.password;
+      formDataCopy.timestamp = serverTimestamp();
+
+      await set(ref(db, "users/" + user.uid), formDataCopy);
+      // toast.success("Sign up was successful");
+      navigate("/");
+    } catch (error) {
+      toast.error("something went wrong with the registration");
+    }
   }
   return (
     <section>
@@ -25,11 +54,29 @@ export default function SignUp() {
           <img src="https://images.unsplash.com/flagged/photo-1564767609342-620cb19b2357?q=80&w=1073&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="key" className='w-full rounded-2xl' />
         </div>
         <div className='w-full md:w-[67%] lg:w-[40%] lg:ml-20'>
-          <form>
-            <input type="text" id='name' value={name} onChange={onChange} placeholder='Full Name' className="mb-6 w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out" />
-            <input type="email" id='email' value={email} onChange={onChange} placeholder='Email address' className="mb-6 w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out" />
+          <form onSubmit={onSubmit}>
+            <input type="text"
+              id='name'
+              value={name}
+              onChange={onChange}
+              placeholder='Full Name'
+              className="mb-6 w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out"
+            />
+            <input type="email"
+              id='email'
+              value={email}
+              onChange={onChange}
+              placeholder='Email address'
+              className="mb-6 w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out"
+            />
             <div className='relative mb-6'>
-              <input type={showPassword ? "text" : "password"} id='password' value={password} onChange={onChange} placeholder='Password' className="w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out" />
+              <input type={showPassword ? "text" : "password"}
+                id='password'
+                value={password}
+                onChange={onChange}
+                placeholder='Password'
+                className="w-full px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out"
+              />
               {showPassword ? (
                 <AiFillEyeInvisible className='absolute right-3 top-3 text-xl cursor-pointer' onClick={() => setShowPassword((prevState) => !prevState)} />
               ) : (<AiFillEye className='absolute right-3 top-3 text-xl cursor-pointer' onClick={() => setShowPassword((prevState) => !prevState)} />)}
@@ -42,7 +89,7 @@ export default function SignUp() {
             <div className=' flex items-center my-4 before:border-t before:flex-1  before:border-gray-300 after:border-t after:flex-1  after:border-gray-300'>
               <p className='text-center font-semibold mx-4'>OR</p>
             </div>
-            <OAuth/>
+            <OAuth />
           </form>
         </div>
       </div>
